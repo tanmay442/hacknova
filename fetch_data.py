@@ -6,7 +6,7 @@ tickers =[
     "HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS",
     "TCS.NS", "INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS",              
     "SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "APOLLOHOSP.NS", 
-    "^NSEI" # Nifty 50 acts as our market calendar
+    "^NSEI" 
 ]
 
 output_dir = "raw_data"
@@ -19,14 +19,10 @@ for ticker in tickers:
     df = yf.download(ticker, start="2023-01-01", end="2025-01-01", auto_adjust=False)
     
     if not df.empty:
-        # ---------------------------------------------------------
-        # THE FIX: Flatten the new yfinance MultiIndex structure
-        # ---------------------------------------------------------
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.droplevel(1) # Drop the Ticker name row
             df.columns.name = None               # Remove the 'Price' label
         
-        # Save each to its own perfectly flat CSV file
         file_path = os.path.join(output_dir, f"{ticker}.csv")
         df.to_csv(file_path)
     else:

@@ -6,8 +6,6 @@ raw_dir = "raw_data"
 clean_dir = "cleaned_data"
 os.makedirs(clean_dir, exist_ok=True)
 
-# 1. Load Nifty 50 to get the exact dates the Indian Market was open
-# Market holidays/weekends are naturally missing from this, which satisfies the prompt!
 nifty_path = os.path.join(raw_dir, "^NSEI.csv")
 nifty_df = pd.read_csv(nifty_path, index_col='Date', parse_dates=True)
 market_dates = nifty_df.index
@@ -45,7 +43,6 @@ for file in stock_files:
         # Save the cleaned individual file
         df_cleaned.to_csv(os.path.join(clean_dir, f"{ticker}.csv"))
 
-# Don't forget to save the Nifty 50 benchmark itself to the cleaned folder too
 nifty_df.to_csv(os.path.join(clean_dir, "^NSEI.csv"))
 
 print(f"\nCleaning complete! Ready-to-use files are in the '{clean_dir}' folder.")
