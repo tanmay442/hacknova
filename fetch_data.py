@@ -1,21 +1,35 @@
 import yfinance as yf
 import pandas as pd
+import os
 
 tickers =[
-    "HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS", # Banking
-    "TCS.NS", "INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS",              # IT
-    "SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "APOLLOHOSP.NS", # Pharma
-    "^NSEI"                                                                 # Nifty 50
+    "HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS",
+    "TCS.NS", "INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS",              
+    "SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "APOLLOHOSP.NS", 
+    "^NSEI" # Nifty 50 acts as our market calendar
 ]
 
-print("Downloading data...")
-data = yf.download(tickers, start="2023-01-01", end="2024-12-31", auto_adjust=False)
+output_dir = "raw_data"
+os.makedirs(output_dir, exist_ok=True)
 
-# 3. Extract adjusted close prices (fallback to close if unavailable)
-if 'Adj Close' in data.columns.get_level_values(0):
-    prices_df = data['Adj Close']
-else:
-    prices_df = data['Close']
+print("Downloading individual ticker data...")
 
-prices_df.to_csv("portfolio_adj_close.csv")
-print("Data successfully downloaded and saved to 'portfolio_adj_close.csv'.")
+for ticker in tickers:
+    print(f"Fetching {ticker}...")
+    df = yf.download(ticker, start="2023-01-01", end="2025-01-01", auto_adjust=False)
+    
+    if not df.empty:
+        # ---------------------------------------------------------
+        # THE FIX: Flatten the new yfinance MultiIndex structure
+        # ---------------------------------------------------------
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1) # Drop the Ticker name row
+            df.columns.name = None               # Remove the 'Price' label
+        
+        # Save each to its own perfectly flat CSV file
+        file_path = os.path.join(output_dir, f"{ticker}.csv")
+        df.to_csv(file_path)
+    else:
+        print(f"  -> Warning: No data found for {ticker}")
+
+print(f"\nAll done! Clean, flat individual files saved in '{output_dir}' folder.")
