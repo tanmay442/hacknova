@@ -153,3 +153,6 @@ After full run, verify these key files exist:
 - Add unit tests for metric calculations and optimization constraints.
 - Add a single orchestrator script (or Makefile) for one-command pipeline runs.
 - Add export buttons in Streamlit for table downloads.
+
+
+##https://docs.google.com/document/d/1E-3HIRh6Vnf5HBtLJC4uEqBtQYASxChHDE8foesRoZE/edit?usp=sharing Portfoio opt doc
