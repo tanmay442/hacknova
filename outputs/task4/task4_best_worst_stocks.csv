@@ -1,0 +1,3 @@
+Category,Stock,Sector,Annualised Return (%),Annualised Volatility (%),Sharpe Ratio,Beta
+Best Stock (Highest Sharpe),SUNPHARMA.NS,Pharma,40.14,17.37,1.94,0.47
+Worst Stock (Lowest Sharpe),KOTAKBANK.NS,Banking,-1.01,20.47,-0.37,0.86

@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 import glob
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
 # --- 1. SETUP & DATA LOADING ---
@@ -21,7 +24,9 @@ stock_to_sector = {stock: sec for sec, stocks in sectors.items() for stock in st
 base_dir = os.path.dirname(os.path.abspath(__file__))
 clean_dir = os.path.join(base_dir, "cleaned_data")
 output_dir = os.path.join(base_dir, "outputs", "task4")
+charts_dir = os.path.join(output_dir, "charts")
 os.makedirs(output_dir, exist_ok=True)
+os.makedirs(charts_dir, exist_ok=True)
 all_files = glob.glob(os.path.join(clean_dir, "*.csv"))
 
 prices_dict = {}
@@ -59,7 +64,11 @@ for stock in stocks:
     
     ind_metrics.append({
         'Stock': stock, 'Sector': stock_to_sector[stock], 
-        'Sharpe': sharpe, 'Beta': beta, 'Is_Golden': is_golden
+        'Annualised Return (%)': ann_ret * 100,
+        'Annualised Volatility (%)': ann_vol * 100,
+        'Sharpe': sharpe,
+        'Beta': beta,
+        'Is_Golden': is_golden
     })
 
 ind_df = pd.DataFrame(ind_metrics).set_index('Stock')
@@ -92,6 +101,8 @@ def negative_sharpe(weights, returns_df):
 bounds = tuple((0, 1) if ind_df.loc[stock, 'Is_Golden'] else (0, 0) for stock in stocks)
 constraints = ({'type': 'eq', 'fun': lambda w: np.sum(w) - 1})
 golden_count = ind_df['Is_Golden'].sum()
+if golden_count == 0:
+    raise ValueError("No stocks passed the Golden Cross filter. Portfolio B cannot be optimized.")
 init_guess = np.array([1/golden_count if ind_df.loc[stock, 'Is_Golden'] else 0 for stock in stocks])
 opt_result = minimize(negative_sharpe, init_guess, args=(returns,), method='SLSQP', bounds=bounds, constraints=constraints)
 weights_B = opt_result.x
@@ -124,10 +135,77 @@ comp_table.to_csv(comparison_table_path)
 print("\n--- Portfolio Comparison ---")
 print(comp_table)
 
+# --- 6B. COMPARISON CHARTS (HOW PORTFOLIO B IMPROVES) ---
+plot_metrics = ['Annualised Return (%)', 'Annualised Volatility (%)', 'Sharpe Ratio']
+metric_a = np.array([port_A_ann_ret * 100, port_A_ann_vol * 100, port_A_sharpe])
+metric_b = np.array([port_B_ann_ret * 100, port_B_ann_vol * 100, port_B_sharpe])
+
+# Positive values indicate improvement by Portfolio B.
+delta_values = np.array([
+    (port_B_ann_ret - port_A_ann_ret) * 100,
+    (port_A_ann_vol - port_B_ann_vol) * 100,
+    (port_B_sharpe - port_A_sharpe)
+])
+
+x = np.arange(len(plot_metrics))
+width = 0.35
+
+fig, axes = plt.subplots(2, 1, figsize=(11, 10), constrained_layout=True)
+
+axes[0].bar(x - width/2, metric_a, width, label='Portfolio A', color='#9ca3af')
+axes[0].bar(x + width/2, metric_b, width, label='Portfolio B', color='#0ea5e9')
+axes[0].set_title('Task 4 Portfolio Comparison')
+axes[0].set_xticks(x)
+axes[0].set_xticklabels(plot_metrics)
+axes[0].set_ylabel('Metric Value')
+axes[0].legend()
+axes[0].grid(axis='y', linestyle='--', alpha=0.35)
+
+delta_colors = ['#16a34a' if val >= 0 else '#dc2626' for val in delta_values]
+axes[1].bar(plot_metrics, delta_values, color=delta_colors)
+axes[1].axhline(0, color='black', linewidth=1)
+axes[1].set_title('Portfolio B Improvement vs Portfolio A')
+axes[1].set_ylabel('Delta (Positive = Better)')
+axes[1].grid(axis='y', linestyle='--', alpha=0.35)
+
+comparison_chart_path = os.path.join(charts_dir, 'task4_portfolio_comparison.png')
+fig.savefig(comparison_chart_path, dpi=300, bbox_inches='tight')
+plt.close(fig)
+print(f"--- Comparison chart saved to '{comparison_chart_path}' ---")
+
+# --- 6C. BEST/WORST STOCK CSV ---
+best_stock = ind_df['Sharpe'].idxmax()
+worst_stock = ind_df['Sharpe'].idxmin()
+
+best_worst_df = pd.DataFrame([
+    {
+        'Category': 'Best Stock (Highest Sharpe)',
+        'Stock': best_stock,
+        'Sector': ind_df.loc[best_stock, 'Sector'],
+        'Annualised Return (%)': round(float(ind_df.loc[best_stock, 'Annualised Return (%)']), 2),
+        'Annualised Volatility (%)': round(float(ind_df.loc[best_stock, 'Annualised Volatility (%)']), 2),
+        'Sharpe Ratio': round(float(ind_df.loc[best_stock, 'Sharpe']), 2),
+        'Beta': round(float(ind_df.loc[best_stock, 'Beta']), 2)
+    },
+    {
+        'Category': 'Worst Stock (Lowest Sharpe)',
+        'Stock': worst_stock,
+        'Sector': ind_df.loc[worst_stock, 'Sector'],
+        'Annualised Return (%)': round(float(ind_df.loc[worst_stock, 'Annualised Return (%)']), 2),
+        'Annualised Volatility (%)': round(float(ind_df.loc[worst_stock, 'Annualised Volatility (%)']), 2),
+        'Sharpe Ratio': round(float(ind_df.loc[worst_stock, 'Sharpe']), 2),
+        'Beta': round(float(ind_df.loc[worst_stock, 'Beta']), 2)
+    }
+])
+
+best_worst_path = os.path.join(output_dir, 'task4_best_worst_stocks.csv')
+best_worst_df.to_csv(best_worst_path, index=False)
+print(f"--- Best/Worst stock table saved to '{best_worst_path}' ---")
+
 # --- 7. AUTO-GENERATE FUND MANAGER NOTE ---
 excluded_stocks =[stocks[i] for i in range(15) if weights_B[i] < 0.01]
 overweighted_stocks = [stocks[i] for i in range(15) if weights_B[i] > 0.15]
-top_sector = max(port_B_sectors, key=port_B_sectors.get)
+top_sector = max(port_B_sectors.items(), key=lambda item: item[1])[0]
 
 print("\n--- 📝 YOUR FUND MANAGER JUSTIFICATION NOTE ---")
 note = f"""
