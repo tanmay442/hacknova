@@ -12,6 +12,10 @@ charts_dir = os.path.join(output_dir, "charts")
 os.makedirs(charts_dir, exist_ok=True)
 analysis_end = pd.Timestamp("2024-12-31")
 
+BANKING_TICKERS = ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS"]
+IT_TICKERS = ["TCS.NS", "INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS"]
+PHARMA_TICKERS = ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "APOLLOHOSP.NS"]
+
 table_data =[]
 crossover_events = {}
 
@@ -81,7 +85,37 @@ signal_df.to_csv(signal_table_path, index=False)
 print(f"\n[SUCCESS] Signal Table saved to '{signal_table_path}'\n")
 print(signal_df.head())
 
-stocks_to_plot = ["HDFCBANK.NS", "TCS.NS", "SUNPHARMA.NS"]
+def pick_ticker(candidates, required_signal):
+    matches = signal_df[
+        signal_df['Ticker'].isin(candidates)
+        & (signal_df['Signal as of 31 Dec 2024'] == required_signal)
+        & (signal_df['Date of Last Crossover'] != 'No crossover in window')
+    ].copy()
+
+    if matches.empty:
+        raise ValueError(
+            f"No ticker found for required signal '{required_signal}' with crossover in window "
+            f"from candidates: {candidates}"
+        )
+
+    matches['CrossoverDate'] = pd.to_datetime(matches['Date of Last Crossover'])
+    matches = matches.sort_values('CrossoverDate', ascending=False)
+    return matches.iloc[0]['Ticker']
+
+hdfc_row = signal_df[signal_df['Ticker'] == 'HDFCBANK.NS']
+if hdfc_row.empty:
+    raise ValueError("HDFCBANK.NS is missing from signal table.")
+if hdfc_row.iloc[0]['Date of Last Crossover'] == 'No crossover in window':
+    raise ValueError("HDFCBANK.NS has no crossover in the analysis window.")
+
+it_golden_ticker = pick_ticker(IT_TICKERS, 'Golden Cross')
+pharma_death_ticker = pick_ticker(PHARMA_TICKERS, 'Death Cross')
+
+stocks_to_plot = ["HDFCBANK.NS", it_golden_ticker, pharma_death_ticker]
+print(f"\nSelected chart tickers: {stocks_to_plot}")
+
+for old_chart in glob.glob(os.path.join(charts_dir, "task3_chart_*.png")):
+    os.remove(old_chart)
 
 for ticker in stocks_to_plot:
     if ticker not in crossover_events:
