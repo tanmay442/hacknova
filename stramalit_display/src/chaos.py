@@ -17,10 +17,7 @@ sectors = {
 }
 stock_to_sector = {stock: sec for sec, stocks in sectors.items() for stock in stocks}
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-clean_dir = os.path.join(base_dir, "cleaned_data")
-output_dir = os.path.join(base_dir, "outputs", "task5")
-os.makedirs(output_dir, exist_ok=True)
+clean_dir = "cleaned_data"
 all_files = glob.glob(os.path.join(clean_dir, "*.csv"))
 
 prices_dict = {}
@@ -87,12 +84,10 @@ port_B_row = pd.DataFrame({'Beta': beta_B, 'Expected Loss (%)': beta_B * MARKET_
 
 stress_test_df = pd.concat([stress_test_df, port_A_row, port_B_row])
 stress_test_df = stress_test_df.round(2)
-stress_test_path = os.path.join(output_dir, "task5_stress_test.csv")
-stress_test_df.to_csv(stress_test_path)
+stress_test_df.to_csv("task5_stress_test.csv")
 
 print("\n--- 📉 Stress Test Results (Nifty -10%) ---")
 print(stress_test_df)
-print(f"--- Stress test file saved to '{stress_test_path}' ---")
 
 # --- 6. IDENTIFY KEY STOCKS ---
 # Most Exposed
