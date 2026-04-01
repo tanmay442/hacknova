@@ -1,0 +1,183 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Schedule (Daily 5 PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -752,
+        64
+      ],
+      "id": "604ce5b5-2d40-4dfb-b01e-4cb7c463d300"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Define your 3 stocks here.\n// We use Yahoo Finance ticker symbols (e.g., .NS for NSE India)\nreturn[\n  { json: { ticker: 'RELIANCE.NS', name: 'Reliance Industries' } },\n  { json: { ticker: 'TCS.NS', name: 'Tata Consultancy Services' } },\n  { json: { ticker: 'INFY.NS', name: 'Infosys' } }\n];"
+      },
+      "name": "Define 3 Stocks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        64
+      ],
+      "id": "180cc653-5ae9-4b31-a0ed-3bf5f03a74fb"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://query1.finance.yahoo.com/v8/finance/chart/' + $json.ticker + '?interval=1d&range=5d' }}",
+        "options": {}
+      },
+      "name": "Fetch OHLCV (Yahoo Finance)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -304,
+        64
+      ],
+      "id": "f4b20ef9-b4e2-41bc-bf44-55a6dece4a03"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst chartData = item.chart.result[0];\nconst ticker = chartData.meta.symbol;\n\n// Get closing prices\nconst closes = chartData.indicators.quote[0].close;\n\n// Filter out any null values (weekends/holidays)\nconst validCloses = closes.filter(c => c !== null);\n\nif (validCloses.length < 2) {\n  return[]; // Not enough data to compare\n}\n\nconst latestClose = validCloses[validCloses.length - 1];\nconst previousClose = validCloses[validCloses.length - 2];\n\n// Calculate percentage change\nconst changePct = ((latestClose - previousClose) / previousClose) * 100;\n\nreturn {\n  json: {\n    ticker: ticker,\n    latestClose: latestClose,\n    previousClose: previousClose,\n    changePct: changePct,\n    absChangePct: Math.abs(changePct)\n  }\n};"
+      },
+      "name": "Calculate % Change",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        64
+      ],
+      "id": "60629c64-238a-4704-a0ba-16a0718c5843"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.absChangePct }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "rightValue": 2
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Check if Move > 2%",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        144,
+        64
+      ],
+      "id": "602d930b-5d8a-4c25-9c92-7a8bed5f2b91"
+    },
+    {
+      "parameters": {
+        "sendTo": "250137032@hbtu.ac.in",
+        "subject": "=🚨 Stock Alert: {{ $json.ticker }} moved {{ $json.changePct.toFixed(2) }}%",
+        "message": "=<h2>🚨 Stock Alert: {{ $json.ticker }}</h2><p>Moved by <strong>{{ $json.changePct.toFixed(2) }}%</strong> today!</p><p>📉 Previous Close: ₹{{ $json.previousClose.toFixed(2) }}<br>📈 Latest Close: ₹{{ $json.latestClose.toFixed(2) }}</p>",
+        "options": {}
+      },
+      "id": "2ed01e7b-1b8d-4481-bed9-d507020d7e13",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        64
+      ],
+      "webhookId": "6335ecd3-d961-42cb-be65-c55d4ca47a3c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WRlP91T9D1vtaOiB",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule (Daily 5 PM)": {
+      "main": [
+        [
+          {
+            "node": "Define 3 Stocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Define 3 Stocks": {
+      "main": [
+        [
+          {
+            "node": "Fetch OHLCV (Yahoo Finance)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch OHLCV (Yahoo Finance)": {
+      "main": [
+        [
+          {
+            "node": "Calculate % Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate % Change": {
+      "main": [
+        [
+          {
+            "node": "Check if Move > 2%",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Move > 2%": {
+      "main": [
+        [
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b8d721d2-ab2e-4c0e-b2dc-8dac86de820d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c875623189e45e5f8582ff4e4bbb58bee6e6dadd417af00aa09616fe0de3c83f"
+  },
+  "id": "bAV0A9tPgDICe96L",
+  "tags": []
+}
