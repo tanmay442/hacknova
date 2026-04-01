@@ -10,8 +10,11 @@ TRADING_DAYS = 252
 RISK_FREE_RATE = 0.065
 
 print("Loading cleaned data...")
-clean_dir = "cleaned_data"
+base_dir = os.path.dirname(os.path.abspath(__file__))
+clean_dir = os.path.join(base_dir, "cleaned_data")
 all_files = sorted(glob.glob(os.path.join(clean_dir, "*.csv")))
+output_dir = os.path.join(base_dir, "outputs", "task2")
+os.makedirs(output_dir, exist_ok=True)
 
 # 1. Load all data into a single DataFrame of Adjusted Close prices
 price_dict = {}
@@ -85,8 +88,9 @@ for stock in stocks:
 
 # Output 1: Summary Table
 summary_df = pd.DataFrame(metrics).set_index('Stock')
-summary_df.to_csv("task2_summary_table.csv")
-print("\n--- Summary Table saved to 'task2_summary_table.csv' ---")
+summary_path = os.path.join(output_dir, "task2_summary_table.csv")
+summary_df.to_csv(summary_path)
+print(f"\n--- Summary Table saved to '{summary_path}' ---")
 print(summary_df.head()) # Preview
 
 # Output 2: Risk-Return Scatter Plot
@@ -103,16 +107,20 @@ plt.title('Risk-Return Scatter Plot (2023-2024)')
 plt.xlabel('Annualised Volatility (%) [RISK]')
 plt.ylabel('Annualised Return (%) [REWARD]')
 plt.grid(True, linestyle='--', alpha=0.7)
-plt.savefig("task2_scatter_plot.png", dpi=300, bbox_inches='tight')
-print("--- Scatter plot saved to 'task2_scatter_plot.png' ---")
+scatter_path = os.path.join(output_dir, "task2_scatter_plot.png")
+plt.savefig(scatter_path, dpi=300, bbox_inches='tight')
+plt.close()
+print(f"--- Scatter plot saved to '{scatter_path}' ---")
 
 # Output 3: Correlation Heatmap
 plt.figure(figsize=(12, 10))
 corr_matrix = returns[stocks].corr()
 sns.heatmap(corr_matrix, annot=False, cmap='coolwarm', vmin=-1, vmax=1, linewidths=0.5)
 plt.title('Correlation Heatmap of Daily Returns across 15 Stocks')
-plt.savefig("task2_correlation_heatmap.png", dpi=300, bbox_inches='tight')
-print("--- Heatmap saved to 'task2_correlation_heatmap.png' ---")
+heatmap_path = os.path.join(output_dir, "task2_correlation_heatmap.png")
+plt.savefig(heatmap_path, dpi=300, bbox_inches='tight')
+plt.close()
+print(f"--- Heatmap saved to '{heatmap_path}' ---")
 
 # Helper block for the written assignment: Find most correlated pair
 corr_values = corr_matrix.to_numpy(copy=True)
